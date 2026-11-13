@@ -70,7 +70,7 @@ Provide your response as a valid JSON object with the following keys:
             self.indexed = True
             logger.info(f"RAG Pipeline initialized with {len(chunks)} chunks.")
 
-    def query(self, question: str) -> ChatResponse:
+    def query(self, question: str, experience_level: Optional[str] = None) -> ChatResponse:
         if not self.indexed:
             self.initialize()
 
@@ -148,13 +148,13 @@ Provide your response as a valid JSON object with the following keys:
         is_plant_query = (has_plant_keyword and not is_explicit_general) or (top_score >= 0.28 and not is_explicit_general)
 
         if not is_plant_query:
-            return self._answer_general_knowledge(question)
+            return self._answer_general_knowledge(question, experience_level)
 
         # Apply Revision Intelligence filtering
         filtered_hits, revision_notice = RevisionManager.filter_chunks(raw_hits, question)
 
         if not filtered_hits:
-            return self._answer_general_knowledge(question)
+            return self._answer_general_knowledge(question, experience_level)
 
         # Build SourceReference list
         sources: List[SourceReference] = []
@@ -188,7 +188,8 @@ Provide your response as a valid JSON object with the following keys:
                     for s in sources
                 )
 
-                prompt = f"Question: {question}\n\nRetrieved Context:\n{context_str}\n\nRespond with valid JSON."
+                exp_text = f"\nOperator Experience Profile: {experience_level}. Tailor clarity accordingly: if Fresher (0 Years) or beginner, provide crystal-clear step-by-step guidance and explain terms/warnings thoroughly. If experienced/lead, provide direct technical specifications and parameters." if experience_level else ""
+                prompt = f"Question: {question}\n\nRetrieved Context:\n{context_str}{exp_text}\n\nRespond with valid JSON."
                 completion = client.chat.completions.create(
                     model=settings.OPENAI_MODEL,
                     response_format={"type": "json_object"},
@@ -231,13 +232,14 @@ Provide your response as a valid JSON object with the following keys:
                 logger.error(f"OpenAI completion error: {e}. Falling back to structured extractive synthesis.")
 
         # High-Fidelity Extractive Synthesis (No-Key mode)
-        return self._extractive_synthesis(question, sources, revision_notice)
+        return self._extractive_synthesis(question, sources, revision_notice, experience_level)
 
     def _extractive_synthesis(
         self, 
         question: str, 
         sources: List[SourceReference], 
-        revision_notice: Optional[str]
+        revision_notice: Optional[str],
+        experience_level: Optional[str] = None
     ) -> ChatResponse:
         primary = sources[0]
         excerpt = primary.excerpt
@@ -459,15 +461,16 @@ Provide your response as a valid JSON object with the following keys:
             suggested_followups=followups
         )
 
-    def _answer_general_knowledge(self, question: str) -> ChatResponse:
+    def _answer_general_knowledge(self, question: str, experience_level: Optional[str] = None) -> ChatResponse:
         """Handles general engineering, technical, and operational questions outside the 4 uploaded plant SOPs."""
         api_key = os.getenv("OPENAI_API_KEY", settings.OPENAI_API_KEY)
         if api_key and len(api_key.strip()) > 10 and time.time() > self._openai_disabled_until:
             try:
                 from openai import OpenAI
                 client = OpenAI(api_key=api_key, max_retries=0, timeout=3.5)
+                exp_guidance = f"\nOperator Experience Profile: {experience_level}. If Fresher/Trainee (0-1 yr), explain fundamentals and acronyms clearly with step-by-step clarity. If experienced, provide concise advanced technical principles." if experience_level else ""
                 prompt = (
-                    f"User Question: {question}\n\n"
+                    f"User Question: {question}\n{exp_guidance}\n"
                     "Provide a thorough, accurate, and structured response for an industrial/engineering audience. "
                     "Respond with a valid JSON object matching the requested schema."
                 )

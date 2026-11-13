@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api", tags=["Chat"])
 @router.post("/chat", response_model=ChatResponse)
 def ask_question(payload: ChatRequest):
     try:
-        return qa_service.answer_question(payload.question)
+        return qa_service.answer_question(payload.question, payload.experience_level)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process query: {str(e)}")
 

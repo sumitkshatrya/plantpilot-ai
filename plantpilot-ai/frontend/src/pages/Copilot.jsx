@@ -9,12 +9,14 @@ import {
   User,
   ShieldCheck,
   Zap,
-  CornerDownLeft
+  CornerDownLeft,
+  Award
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { chatApi } from '../services/api';
 import AnswerCard from '../components/AnswerCard';
 import SourceModal from '../components/SourceModal';
+import ExperienceModal from '../components/ExperienceModal';
 
 const SUGGESTED_QUESTIONS = [
   { label: 'Normal hydraulic pressure for TX-200', q: 'What is the normal hydraulic pressure for the TX-200 CNC machine?' },
@@ -36,7 +38,19 @@ export default function Copilot() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedSource, setSelectedSource] = useState(null);
+  const [isExpModalOpen, setIsExpModalOpen] = useState(false);
+  const [experience, setExperience] = useState(() => {
+    return localStorage.getItem('plantpilot_experience') || 'Fresher / Trainee (0 Years)';
+  });
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    const handleExpChange = () => {
+      setExperience(localStorage.getItem('plantpilot_experience') || 'Fresher / Trainee (0 Years)');
+    };
+    window.addEventListener('plantpilot-exp-changed', handleExpChange);
+    return () => window.removeEventListener('plantpilot-exp-changed', handleExpChange);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -57,6 +71,7 @@ export default function Copilot() {
       id: Date.now().toString(),
       role: 'user',
       text: query,
+      experience_level: experience,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -65,7 +80,7 @@ export default function Copilot() {
     setLoading(true);
 
     try {
-      const data = await chatApi.ask(query);
+      const data = await chatApi.ask(query, experience);
       const assistantMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -102,12 +117,12 @@ export default function Copilot() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-4rem)] overflow-hidden bg-[#0A0F1D]">
+    <div className="flex-1 flex flex-col min-h-0 h-full overflow-hidden bg-[#0A0F1D]">
       {/* Top Banner & Quick Controls */}
-      <div className="px-4 lg:px-8 py-3 border-b border-slate-800/80 bg-[#0C1324] flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-teal-400"></span>
-          <span className="text-xs font-mono font-medium text-slate-300">
+      <div className="px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 border-b border-slate-800/80 bg-[#0C1324] flex items-center justify-between shrink-0 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-2 h-2 rounded-full bg-teal-400 shrink-0"></span>
+          <span className="text-xs font-mono font-medium text-slate-300 truncate">
             Grounding: 4 Controlled PDFs · ChromaDB Vector Search
           </span>
         </div>
@@ -115,45 +130,46 @@ export default function Copilot() {
         {messages.length > 0 && (
           <button
             onClick={handleClear}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-rose-400 px-2.5 py-1 rounded-lg hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-rose-400 px-2.5 py-1 rounded-lg hover:bg-slate-800 transition-colors shrink-0"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Clear History</span>
+            <span className="hidden sm:inline">Clear History</span>
+            <span className="sm:hidden">Clear</span>
           </button>
         )}
       </div>
 
       {/* Main Chat Stream */}
-      <div className="flex-1 overflow-y-auto px-4 lg:px-8 py-6 space-y-6">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {messages.length === 0 ? (
           /* Empty / Welcome State */
-          <div className="max-w-3xl mx-auto py-8 text-center space-y-8 animate-fade-in">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-teal-500/20 to-cyan-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 shadow-xl shadow-teal-500/5">
-              <Bot className="w-8 h-8" />
+          <div className="max-w-3xl mx-auto py-4 sm:py-8 text-center space-y-6 sm:space-y-8 animate-fade-in">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto rounded-2xl bg-gradient-to-br from-teal-500/20 to-cyan-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 shadow-xl shadow-teal-500/5">
+              <Bot className="w-7 h-7 sm:w-8 sm:h-8" />
             </div>
 
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-white tracking-tight">
+            <div className="space-y-1.5 sm:space-y-2 px-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                 PlantPilot AI Copilot
               </h2>
-              <p className="text-sm text-slate-400 max-w-lg mx-auto">
+              <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
                 Ask operational questions across Hosur Plant’s CNC maintenance manual, incoming material inspection SOP, and LOTO procedures.
               </p>
             </div>
 
             {/* Suggested Chips */}
-            <div className="space-y-3 text-left">
-              <div className="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold px-1">
+            <div className="space-y-2.5 sm:space-y-3 text-left">
+              <div className="text-[11px] sm:text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold px-1">
                 Verified Benchmark Queries
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
                 {SUGGESTED_QUESTIONS.map((item, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSubmit(item.q)}
-                    className="p-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-teal-500/40 text-left transition-all duration-150 group flex items-start justify-between gap-3"
+                    className="p-3 sm:p-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-800/80 active:bg-slate-800 border border-slate-800 hover:border-teal-500/40 text-left transition-all duration-150 group flex items-start justify-between gap-2.5"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <div className="text-xs font-semibold text-slate-200 group-hover:text-teal-300 transition-colors">
                         {item.label}
                       </div>
@@ -169,37 +185,43 @@ export default function Copilot() {
           </div>
         ) : (
           /* Messages List */
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
             {messages.map((msg) => (
               <div key={msg.id} className="space-y-2">
                 {msg.role === 'user' ? (
                   /* User message pill */
-                  <div className="flex justify-end items-end gap-2.5">
-                    <div className="max-w-2xl px-5 py-3 rounded-2xl rounded-br-none bg-teal-600 text-white shadow-lg text-sm font-medium">
-                      {msg.text}
+                  <div className="flex justify-end items-end gap-2 sm:gap-2.5">
+                    <div className="max-w-[88%] sm:max-w-xl md:max-w-2xl px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl rounded-br-none bg-teal-600 text-white shadow-lg text-xs sm:text-sm font-medium break-words leading-relaxed">
+                      <div>{msg.text}</div>
+                      {msg.experience_level && (
+                        <div className="mt-1 text-[10px] font-mono text-teal-100/80 flex items-center justify-end gap-1 pt-1 border-t border-teal-500/40">
+                          <Award className="w-3 h-3 text-teal-200" />
+                          <span>{msg.experience_level}</span>
+                        </div>
+                      )}
                     </div>
-                    <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-teal-300 shrink-0">
+                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-700 flex items-center justify-center text-[9px] sm:text-[10px] font-bold text-teal-300 shrink-0">
                       QC
                     </div>
                   </div>
                 ) : (
                   /* Assistant message card */
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 shrink-0 mt-1 shadow-sm">
+                  <div className="flex items-start gap-2.5 sm:gap-3">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 shrink-0 mt-1 shadow-sm">
                       <Bot className="w-4 h-4" />
                     </div>
-                    <div className="flex-1 max-w-3xl">
+                    <div className="flex-1 min-w-0 max-w-full sm:max-w-3xl">
                       <AnswerCard message={msg} onSelectSource={setSelectedSource} />
 
                       {/* Suggested Followups */}
                       {msg.suggested_followups && msg.suggested_followups.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-1.5 items-center">
+                        <div className="mt-2.5 sm:mt-3 flex flex-wrap gap-1.5 items-center">
                           <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide mr-1">Follow up:</span>
                           {msg.suggested_followups.map((f, fIdx) => (
                             <button
                               key={fIdx}
                               onClick={() => handleSubmit(f)}
-                              className="text-xs px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-teal-300 hover:border-teal-500/40 transition-colors"
+                              className="text-[11px] sm:text-xs px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-teal-300 hover:border-teal-500/40 transition-colors"
                             >
                               {f}
                             </button>
@@ -214,17 +236,17 @@ export default function Copilot() {
 
             {/* Loading Indicator */}
             {loading && (
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 shrink-0 mt-1 animate-pulse">
+              <div className="flex items-start gap-2.5 sm:gap-3">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 shrink-0 mt-1 animate-pulse">
                   <Bot className="w-4 h-4" />
                 </div>
-                <div className="max-w-md p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
+                <div className="max-w-md p-3.5 sm:p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
                   <div className="flex items-center gap-2 text-xs font-mono text-teal-400">
                     <span className="w-2 h-2 rounded-full bg-teal-400 animate-ping"></span>
                     <span>Searching ChromaDB & applying revision rules…</span>
                   </div>
-                  <div className="h-2 w-48 bg-slate-800 rounded animate-pulse"></div>
-                  <div className="h-2 w-32 bg-slate-800 rounded animate-pulse"></div>
+                  <div className="h-2 w-40 sm:w-48 bg-slate-800 rounded animate-pulse"></div>
+                  <div className="h-2 w-28 sm:w-32 bg-slate-800 rounded animate-pulse"></div>
                 </div>
               </div>
             )}
@@ -234,8 +256,29 @@ export default function Copilot() {
       </div>
 
       {/* Input Dock Area (Mobile-First) */}
-      <div className="p-4 lg:px-8 border-t border-slate-800/80 bg-[#0E1528] shrink-0">
+      <div className="p-3 sm:p-4 lg:px-8 border-t border-slate-800/80 bg-[#0E1528] shrink-0 safe-pb">
         <div className="max-w-4xl mx-auto">
+          {/* Active Operator Experience Pill Bar */}
+          <div className="flex items-center justify-between mb-2 px-1">
+            <button
+              type="button"
+              onClick={() => setIsExpModalOpen(true)}
+              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-teal-300 transition-colors group cursor-pointer"
+              title="Click to change experience tier (Fresher, 1-5+ Years, or Custom)"
+            >
+              <Award className="w-3.5 h-3.5 text-teal-400 group-hover:scale-110 transition-transform" />
+              <span className="font-mono text-[11px]">Experience:</span>
+              <span className="font-semibold text-teal-300 font-mono bg-slate-900 border border-slate-800 px-2 py-0.5 rounded text-[11px] group-hover:border-teal-500/50">
+                {experience}
+              </span>
+              <span className="text-[10px] text-teal-400/80 underline decoration-dotted font-mono ml-0.5">Change</span>
+            </button>
+
+            <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">
+              Tailoring technical depth
+            </span>
+          </div>
+
           <div className="relative rounded-2xl bg-slate-950 border border-slate-800 focus-within:border-teal-500/60 shadow-xl transition-all">
             <textarea
               rows={2}
@@ -243,21 +286,21 @@ export default function Copilot() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask an SOP, LOTO or QC question (e.g. 'What is the normal hydraulic pressure for TX-200?')"
-              className="w-full bg-transparent px-4 py-3 text-sm text-slate-100 placeholder-slate-400 focus:outline-none resize-none"
+              className="w-full bg-transparent px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-slate-100 placeholder-slate-400 focus:outline-none resize-none leading-relaxed"
             />
 
-            <div className="px-3 pb-2.5 pt-1 flex items-center justify-between border-t border-slate-900">
+            <div className="px-3 pb-2.5 pt-1 flex items-center justify-between border-t border-slate-900 gap-2">
               <span className="text-[11px] text-slate-400 hidden sm:inline-flex items-center gap-1 font-mono">
                 Press <CornerDownLeft className="w-3 h-3" /> Enter to send
               </span>
-              <span className="text-[11px] text-slate-400 sm:hidden">
+              <span className="text-[10px] text-slate-400 sm:hidden font-mono truncate">
                 Grounded in 4 plant PDFs
               </span>
 
               <button
                 onClick={() => handleSubmit()}
                 disabled={loading || !input.trim()}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:bg-slate-800 disabled:text-slate-400 text-xs font-semibold text-white shadow-md shadow-teal-600/20 transition-all cursor-pointer disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-teal-600 hover:bg-teal-500 active:bg-teal-700 disabled:bg-slate-800 disabled:text-slate-400 text-xs font-semibold text-white shadow-md shadow-teal-600/20 transition-all cursor-pointer disabled:cursor-not-allowed shrink-0 min-h-[36px]"
               >
                 <span>Ask Copilot</span>
                 <Send className="w-3.5 h-3.5" />
@@ -269,6 +312,14 @@ export default function Copilot() {
 
       {/* Source Excerpt Modal */}
       <SourceModal source={selectedSource} onClose={() => setSelectedSource(null)} />
+
+      {/* Experience Level Selector Modal */}
+      <ExperienceModal
+        isOpen={isExpModalOpen}
+        onClose={() => setIsExpModalOpen(false)}
+        currentExperience={experience}
+        onSelectExperience={setExperience}
+      />
     </div>
   );
 }

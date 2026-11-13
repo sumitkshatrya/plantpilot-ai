@@ -18,8 +18,11 @@ const api = axios.create({
 });
 
 export const chatApi = {
-  ask: async (question) => {
-    const res = await api.post('/api/chat', { question });
+  ask: async (question, experienceLevel) => {
+    const res = await api.post('/api/chat', { 
+      question,
+      experience_level: experienceLevel || localStorage.getItem('plantpilot_experience') || 'Fresher (0 Years)'
+    });
     return res.data;
   },
   getHistory: async () => {

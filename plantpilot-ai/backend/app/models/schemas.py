@@ -17,6 +17,7 @@ class SourceReference(BaseModel):
 
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=3, max_length=1000, description="The supervisor question")
+    experience_level: Optional[str] = Field(default="Fresher (0 Years)", description="Operator experience level (e.g. Fresher / 0 Years, 1-5+ Years, or custom)")
 
 class ChatResponse(BaseModel):
     answer: str
@@ -59,3 +60,4 @@ class HistoryItem(BaseModel):
     direct_answer: Optional[str] = None
     primary_source: Optional[str] = None
     revision: Optional[int] = None
+    experience_level: Optional[str] = None

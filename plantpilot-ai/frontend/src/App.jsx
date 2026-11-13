@@ -21,7 +21,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#0A0F1D] text-slate-100 font-sans">
+    <div className="flex h-[100dvh] min-h-[100dvh] max-h-[100dvh] w-full min-w-0 overflow-hidden bg-[#0A0F1D] text-slate-100 font-sans">
       <Toaster 
         position="top-right" 
         toastOptions={{
